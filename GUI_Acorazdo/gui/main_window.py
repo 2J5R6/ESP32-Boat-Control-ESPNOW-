@@ -161,12 +161,6 @@ class MainWindow(QMainWindow):
         self.enable_3d_checkbox.stateChanged.connect(self.toggle_3d_view)
         viewer_layout.addWidget(self.enable_3d_checkbox)
         
-        self.glb_model_checkbox = QCheckBox("Usar modelo 3D real (Barco.glb)")
-        self.glb_model_checkbox.setChecked(False)
-        self.glb_model_checkbox.stateChanged.connect(self.toggle_glb_model)
-        self.glb_model_checkbox.setToolTip("Carga el modelo 3D desde Public/Barco.glb")
-        viewer_layout.addWidget(self.glb_model_checkbox)
-        
         self.water_effect_checkbox = QCheckBox("Efecto de agua")
         self.water_effect_checkbox.setChecked(True)
         self.water_effect_checkbox.stateChanged.connect(self.toggle_water_effect)
@@ -293,13 +287,6 @@ class MainWindow(QMainWindow):
         enabled = state == Qt.CheckState.Checked.value
         self.boat_viewer.set_water_effect(enabled)
         self.log(f"🌊 Efecto de agua: {'Habilitado' if enabled else 'Deshabilitado'}")
-    
-    def toggle_glb_model(self, state):
-        """Habilitar/deshabilitar modelo GLB real"""
-        enabled = state == Qt.CheckState.Checked.value
-        self.boat_viewer.set_glb_model(enabled)
-        model_type = "Modelo 3D real (Barco.glb)" if enabled else "Modelo provisional"
-        self.log(f"🚤 {model_type}")
     
     def log(self, message):
         """Agregar mensaje al log"""

@@ -4,7 +4,7 @@ Visualizador 3D del Barco
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtProperty
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient, QRadialGradient, QPainterPath, QImage, QPixmap
+from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient, QRadialGradient, QPainterPath
 import math
 import os
 
@@ -13,7 +13,6 @@ class BoatViewer(QWidget):
         super().__init__()
         self.enabled = True
         self.water_effect = True
-        self.use_glb_model = False  # Nueva opción
         self.boat_x = 0
         self.boat_y = 0
         self.boat_angle = 0
@@ -25,11 +24,6 @@ class BoatViewer(QWidget):
         self.target_x = 0
         self.target_y = 0
         self.target_angle = 0
-        
-        # Modelo 3D GLB
-        self.glb_renderer = None
-        self.glb_image = None
-        self.glb_scale = 1.0
         
         self.init_ui()
         
@@ -78,11 +72,8 @@ class BoatViewer(QWidget):
         # Dibujar grid de referencia
         self.draw_grid(painter)
         
-        # Dibujar barco (GLB o provisional)
-        if self.use_glb_model and self.glb_image:
-            self.draw_glb_boat(painter)
-        else:
-            self.draw_boat(painter)
+        # Dibujar barco
+        self.draw_boat(painter)
         
         # Dibujar indicadores
         self.draw_indicators(painter)
@@ -196,41 +187,6 @@ class BoatViewer(QWidget):
             # Flecha
             painter.drawLine(45, 0, 38, -7)
             painter.drawLine(45, 0, 38, 7)
-        
-        painter.restore()
-    
-    def draw_glb_boat(self, painter):
-        """Dibujar el barco usando modelo GLB"""
-        center_x = self.width() // 2 + self.boat_x
-        center_y = self.height() // 2 + self.boat_y
-        
-        painter.save()
-        painter.translate(center_x, center_y)
-        painter.rotate(self.boat_angle)
-        
-        # Sombra del barco
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(0, 0, 0, 50))
-        shadow_size = 150 * self.glb_scale
-        painter.drawEllipse(-shadow_size//2, -shadow_size//3, shadow_size, shadow_size//1.5)
-        
-        # Dibujar imagen del modelo 3D
-        if self.glb_image:
-            img_width = int(self.glb_image.width() * self.glb_scale)
-            img_height = int(self.glb_image.height() * self.glb_scale)
-            
-            # Centrar la imagen
-            target_rect = (-img_width // 2, -img_height // 2, img_width, img_height)
-            painter.drawImage(*target_rect, self.glb_image)
-        
-        # Indicador de dirección
-        if self.is_moving:
-            painter.setPen(QPen(QColor(46, 204, 113), 4))
-            arrow_length = 80 * self.glb_scale
-            painter.drawLine(0, 0, arrow_length, 0)
-            # Flecha
-            painter.drawLine(arrow_length, 0, arrow_length - 15, -12)
-            painter.drawLine(arrow_length, 0, arrow_length - 15, 12)
         
         painter.restore()
     
@@ -384,81 +340,3 @@ class BoatViewer(QWidget):
         """Habilitar/deshabilitar efecto de agua"""
         self.water_effect = enabled
         self.update()
-    
-    def set_glb_model(self, enabled):
-        """Habilitar/deshabilitar modelo GLB real"""
-        self.use_glb_model = enabled
-        
-        if enabled and not self.glb_image:
-            # Cargar modelo GLB la primera vez
-            self.load_glb_model()
-        
-        self.update()
-    
-    def load_glb_model(self):
-        """Cargar y renderizar el modelo GLB"""
-        try:
-            import trimesh
-            import numpy as np
-            from PIL import Image
-            import io
-            
-            # Ruta al archivo GLB
-            glb_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Public', 'Barco.glb')
-            
-            if not os.path.exists(glb_path):
-                print(f"⚠️ No se encontró el archivo: {glb_path}")
-                return
-            
-            # Cargar modelo
-            print(f"📦 Cargando modelo 3D: {glb_path}")
-            mesh = trimesh.load(glb_path)
-            
-            # Si es una escena, tomar la geometría principal
-            if isinstance(mesh, trimesh.Scene):
-                mesh = trimesh.util.concatenate([
-                    trimesh.Trimesh(vertices=g.vertices, faces=g.faces)
-                    for g in mesh.geometry.values()
-                ])
-            
-            # Renderizar a imagen
-            # Crear una escena con el mesh
-            scene = trimesh.Scene(mesh)
-            
-            # Configurar vista desde arriba (vista de pájaro)
-            # Rotar para vista superior
-            rotation_matrix = trimesh.transformations.rotation_matrix(
-                np.radians(-90),  # 90 grados
-                [1, 0, 0]  # Rotar alrededor del eje X
-            )
-            mesh.apply_transform(rotation_matrix)
-            
-            # Obtener los límites del modelo
-            bounds = mesh.bounds
-            extents = bounds[1] - bounds[0]
-            max_extent = max(extents)
-            
-            # Calcular escala para que se vea bien
-            target_size = 200  # Tamaño objetivo en píxeles
-            self.glb_scale = target_size / max_extent if max_extent > 0 else 1.0
-            
-            # Renderizar a imagen PNG
-            png_data = mesh.export(file_type='png', resolution=[400, 400])
-            
-            # Convertir a QImage
-            pil_image = Image.open(io.BytesIO(png_data))
-            pil_image = pil_image.convert('RGBA')
-            
-            # Convertir PIL a QImage
-            data = pil_image.tobytes('raw', 'RGBA')
-            self.glb_image = QImage(data, pil_image.width, pil_image.height, QImage.Format.Format_RGBA8888)
-            
-            print("✅ Modelo 3D cargado correctamente")
-            
-        except ImportError as e:
-            print(f"⚠️ Faltan dependencias para cargar modelo 3D: {e}")
-            print("Ejecuta: pip install trimesh pyglet pillow")
-        except Exception as e:
-            print(f"❌ Error al cargar modelo GLB: {e}")
-            import traceback
-            traceback.print_exc()
