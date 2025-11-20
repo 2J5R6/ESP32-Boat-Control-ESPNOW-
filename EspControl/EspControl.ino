@@ -9,13 +9,12 @@
 #include <WiFi.h>
 
 // === DIRECCIÓN MAC DEL ESP32 BARCO ===
-// NOTA: Reemplaza con la MAC real de tu ESP32 del barco
-uint8_t direccionMAC_Barco[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+// MAC: 98:A3:16:E5:9F:90
+uint8_t direccionMAC_Barco[] = {0x98, 0xA3, 0x16, 0xE5, 0x9F, 0x90};
 
 // === ESTRUCTURA DE DATOS ===
 typedef struct struct_message {
   char comando[32];          // "ADELANTE", "ATRAS", "IZQUIERDA", "DERECHA", "PARAR"
-  int velocidad;             // Velocidad 0-255
   int tiempo_ms;             // Tiempo de ejecución en milisegundos (0 = continuo)
   unsigned long timestamp;   // Marca de tiempo para debugging
 } struct_message;
@@ -24,7 +23,6 @@ struct_message datosEnviar;
 struct_message estadoBarco;
 
 // === VARIABLES DE CONTROL ===
-int velocidadDefault = 200;  // Velocidad por defecto (0-255)
 unsigned long ultimoComando = 0;
 unsigned long ultimoEstado = 0;
 bool esperandoRespuesta = false;
@@ -48,8 +46,6 @@ void OnDataRecv(const esp_now_recv_info_t *recv_info, const uint8_t *incomingDat
   Serial.println("[RX] ===== ESTADO DEL BARCO =====");
   Serial.print("     Estado: ");
   Serial.println(estadoBarco.comando);
-  Serial.print("     Velocidad: ");
-  Serial.println(estadoBarco.velocidad);
   if (estadoBarco.tiempo_ms > 0) {
     Serial.print("     Tiempo restante: ");
     Serial.print(estadoBarco.tiempo_ms);
@@ -127,19 +123,19 @@ void loop() {
       enviarMensajePrueba();
     } else if (entrada == "w" || entrada == "adelante") {
       Serial.println("Enviando comando ADELANTE...");
-      enviarComando("ADELANTE");
+      enviarComandoSimple("ADELANTE");
     } else if (entrada == "s" || entrada == "atras") {
       Serial.println("Enviando comando ATRAS...");
-      enviarComando("ATRAS"); 
+      enviarComandoSimple("ATRAS"); 
     } else if (entrada == "a" || entrada == "izquierda") {
       Serial.println("Enviando comando IZQUIERDA...");
-      enviarComando("IZQUIERDA");
+      enviarComandoSimple("IZQUIERDA");
     } else if (entrada == "d" || entrada == "derecha") {
       Serial.println("Enviando comando DERECHA...");
-      enviarComando("DERECHA");
+      enviarComandoSimple("DERECHA");
     } else if (entrada == "p" || entrada == "parar") {
       Serial.println("Enviando comando PARAR...");
-      enviarComando("PARAR");
+      enviarComandoSimple("PARAR");
     } else {
       Serial.println("Comandos: test, mac, espnow, w, s, a, d, p");
     }
@@ -163,8 +159,8 @@ void enviarMensajePrueba() {
   }
 }
 
-// Función para enviar comandos de movimiento
-void enviarComando(String comando) {
+// Función simplificada para enviar comandos (sin velocidad)
+void enviarComandoSimple(String comando) {
   uint8_t macBarco[] = {0x98, 0xA3, 0x16, 0xE5, 0x9F, 0x90}; // MAC real del barco
   
   esp_err_t result = esp_now_send(macBarco, (uint8_t*)comando.c_str(), comando.length());
@@ -189,19 +185,6 @@ void procesarComando(String cmd) {
     return;
   }
   
-  // Comando para establecer velocidad
-  if (cmd.startsWith("VEL ")) {
-    int nuevaVel = cmd.substring(4).toInt();
-    if (nuevaVel >= 0 && nuevaVel <= 255) {
-      velocidadDefault = nuevaVel;
-      Serial.print("[CONFIG] Velocidad establecida a: ");
-      Serial.println(velocidadDefault);
-    } else {
-      Serial.println("[ERROR] Velocidad debe estar entre 0 y 255");
-    }
-    return;
-  }
-  
   // Comando para obtener estado
   if (cmd == "ESTADO" || cmd == "STATUS" || cmd == "S") {
     mostrarEstadoBarco();
@@ -216,19 +199,19 @@ void procesarComando(String cmd) {
   
   // Comandos de movimiento básicos
   if (cmd == "W" || cmd == "ADELANTE") {
-    enviarComando("ADELANTE", velocidadDefault, 0);
+    enviarComando("ADELANTE", 0);
   }
   else if (cmd == "S" || cmd == "ATRAS") {
-    enviarComando("ATRAS", velocidadDefault, 0);
+    enviarComando("ATRAS", 0);
   }
   else if (cmd == "A" || cmd == "IZQUIERDA") {
-    enviarComando("IZQUIERDA", velocidadDefault, 0);
+    enviarComando("IZQUIERDA", 0);
   }
   else if (cmd == "D" || cmd == "DERECHA") {
-    enviarComando("DERECHA", velocidadDefault, 0);
+    enviarComando("DERECHA", 0);
   }
   else if (cmd == "PARAR" || cmd == "STOP" || cmd == "P") {
-    enviarComando("PARAR", 0, 0);
+    enviarComando("PARAR", 0);
   }
   
   // Comandos con tiempo (formato: "ADELANTE 2000" = adelante por 2 segundos)
@@ -240,16 +223,16 @@ void procesarComando(String cmd) {
     
     if (tiempo > 0) {
       if (movimiento == "ADELANTE" || movimiento == "W") {
-        enviarComando("ADELANTE", velocidadDefault, tiempo);
+        enviarComando("ADELANTE", tiempo);
       }
       else if (movimiento == "ATRAS" || movimiento == "S") {
-        enviarComando("ATRAS", velocidadDefault, tiempo);
+        enviarComando("ATRAS", tiempo);
       }
       else if (movimiento == "IZQUIERDA" || movimiento == "A") {
-        enviarComando("IZQUIERDA", velocidadDefault, tiempo);
+        enviarComando("IZQUIERDA", tiempo);
       }
       else if (movimiento == "DERECHA" || movimiento == "D") {
-        enviarComando("DERECHA", velocidadDefault, tiempo);
+        enviarComando("DERECHA", tiempo);
       }
       else {
         Serial.println("[ERROR] Comando no reconocido");
@@ -266,9 +249,8 @@ void procesarComando(String cmd) {
 }
 
 // === ENVÍO DE COMANDOS ===
-void enviarComando(String cmd, int vel, int tiempo) {
+void enviarComando(String cmd, int tiempo) {
   strcpy(datosEnviar.comando, cmd.c_str());
-  datosEnviar.velocidad = vel;
   datosEnviar.tiempo_ms = tiempo;
   datosEnviar.timestamp = millis();
   
@@ -277,8 +259,6 @@ void enviarComando(String cmd, int vel, int tiempo) {
   Serial.println("=== ENVIANDO COMANDO ===");
   Serial.print("Comando: ");
   Serial.println(cmd);
-  Serial.print("Velocidad: ");
-  Serial.println(vel);
   Serial.print("Tiempo: ");
   if (tiempo > 0) {
     Serial.print(tiempo);
@@ -313,7 +293,6 @@ void mostrarAyuda() {
   Serial.println("  derecha 1500    - Girar derecha por 1.5 segundos");
   Serial.println();
   Serial.println("CONFIGURACIÓN:");
-  Serial.println("  vel 150         - Establecer velocidad (0-255)");
   Serial.println("  estado          - Mostrar estado actual del barco");
   Serial.println("  mac             - Mostrar MAC configurada del barco");
   Serial.println();
@@ -321,8 +300,7 @@ void mostrarAyuda() {
   Serial.println("  help / ayuda / h / ? - Mostrar esta ayuda");
   Serial.println("========================================================");
   Serial.println();
-  Serial.print("Velocidad actual: ");
-  Serial.println(velocidadDefault);
+  Serial.println("NOTA: Control a velocidad fija (ENA/ENB no conectados)");
   Serial.print("Comando> ");
 }
 
@@ -337,8 +315,6 @@ void mostrarEstadoBarco() {
   Serial.println("======= ESTADO ACTUAL DEL BARCO =======");
   Serial.print("Estado: ");
   Serial.println(estadoBarco.comando);
-  Serial.print("Velocidad: ");
-  Serial.println(estadoBarco.velocidad);
   Serial.print("Tiempo sin comunicación: ");
   Serial.print(tiempoSinEstado / 1000.0);
   Serial.println(" segundos");

@@ -1,5 +1,7 @@
 /*
- * ESP32-S3 Control de Barco 
+ * ESP32-S3 Control de Barco - Modo Sin PWM
+ * ENA y ENB conectados directamente a 5V
+ * Control solo por dirección (IN1, IN2, IN3, IN4)
  */
 
 #include <WiFi.h>
@@ -9,17 +11,12 @@
 // Motor A (Izquierdo)
 #define MOTOR_A_IN1 18
 #define MOTOR_A_IN2 17
-#define MOTOR_A_ENA 2   // Si quieres pruebas, no lo conectes aún
+// MOTOR_A_ENA conectado directo a 5V
 
 // Motor B (Derecho)  
 #define MOTOR_B_IN3 16
 #define MOTOR_B_IN4 4
-#define MOTOR_B_ENB 15  // Si quieres pruebas, no lo conectes aún
-
-// === CONFIGURACIÓN LEDC PARA ESP32-S3 ===
-#define PWM_FREQ 1000        // 1 KHz
-#define PWM_RESOLUTION 8     // 8 bits (0-255)
-#define VELOCIDAD_MOTOR 200  // Velocidad por defecto
+// MOTOR_B_ENB conectado directo a 5V
 
 // === DECLARACIONES DE FUNCIONES ===
 void configurarMotores();
@@ -97,39 +94,7 @@ void setup() {
   configurarMotores();
   Serial.println("Motores configurados OK");
   
-  // === PRUEBA AUTOMÁTICA DE MOTORES ===
-  Serial.println("\n=== INICIANDO PRUEBA DE MOTORES ===");
-  
-  Serial.println("Prueba 1: Motor A adelante...");
-  digitalWrite(MOTOR_A_IN1, HIGH);
-  digitalWrite(MOTOR_A_IN2, LOW);
-  ledcWrite(MOTOR_A_ENA, 200);
-  delay(2000);
-  ledcWrite(MOTOR_A_ENA, 0);
-  digitalWrite(MOTOR_A_IN1, LOW);
-  Serial.println("Motor A parado");
-  
-  delay(1000);
-  
-  Serial.println("Prueba 2: Motor B adelante...");
-  digitalWrite(MOTOR_B_IN3, HIGH);
-  digitalWrite(MOTOR_B_IN4, LOW);
-  ledcWrite(MOTOR_B_ENB, 200);
-  delay(2000);
-  ledcWrite(MOTOR_B_ENB, 0);
-  digitalWrite(MOTOR_B_IN3, LOW);
-  Serial.println("Motor B parado");
-  
-  delay(1000);
-  
-  Serial.println("Prueba 3: Ambos motores adelante...");
-  moverAdelante();
-  delay(2000);
-  pararMotores();
-  
-  Serial.println("=== PRUEBA DE MOTORES COMPLETADA ===\n");
-  
-  Serial.println("Setup completado - Sistema completo funcionando");
+  Serial.println("\nSetup completado - Sistema funcionando");
   Serial.println("Esperando comandos de movimiento...");
 }
 
@@ -149,40 +114,20 @@ void loop() {
 // === FUNCIONES DE CONTROL DE MOTORES ===
 
 void configurarMotores() {
-  // Configurar pines digitales
-  Serial.println("Configurando pines digitales...");
+  // Configurar solo pines de dirección
+  Serial.println("Configurando pines de dirección...");
   pinMode(MOTOR_A_IN1, OUTPUT);
   pinMode(MOTOR_A_IN2, OUTPUT);
   pinMode(MOTOR_B_IN3, OUTPUT);
   pinMode(MOTOR_B_IN4, OUTPUT);
   
+  // Inicializar en LOW (motores parados)
   digitalWrite(MOTOR_A_IN1, LOW);
   digitalWrite(MOTOR_A_IN2, LOW);
   digitalWrite(MOTOR_B_IN3, LOW);
   digitalWrite(MOTOR_B_IN4, LOW);
   
-  // Configurar LEDC PWM para ESP32-S3
-  Serial.println("Configurando LEDC PWM...");
-  
-  if (ledcAttach(MOTOR_A_ENA, PWM_FREQ, PWM_RESOLUTION)) {
-    Serial.println("✓ PWM Motor A (ENA) configurado");
-  } else {
-    Serial.println("✗ ERROR PWM Motor A");
-    return;
-  }
-  
-  if (ledcAttach(MOTOR_B_ENB, PWM_FREQ, PWM_RESOLUTION)) {
-    Serial.println("✓ PWM Motor B (ENB) configurado");
-  } else {
-    Serial.println("✗ ERROR PWM Motor B");
-    return;
-  }
-  
-  // Inicializar PWM en 0
-  ledcWrite(MOTOR_A_ENA, 0);
-  ledcWrite(MOTOR_B_ENB, 0);
-  
-  Serial.println("✓ Motores configurados con LEDC");
+  Serial.println("✓ Motores configurados (ENA/ENB en 5V externo)");
 }
 
 void moverAdelante() {
@@ -190,12 +135,10 @@ void moverAdelante() {
   // Motor A (Izquierdo) - Adelante
   digitalWrite(MOTOR_A_IN1, HIGH);
   digitalWrite(MOTOR_A_IN2, LOW);
-  ledcWrite(MOTOR_A_ENA, VELOCIDAD_MOTOR);  // USAR LEDC
   
   // Motor B (Derecho) - Adelante
   digitalWrite(MOTOR_B_IN3, HIGH);
   digitalWrite(MOTOR_B_IN4, LOW);
-  ledcWrite(MOTOR_B_ENB, VELOCIDAD_MOTOR);  // USAR LEDC
 }
 
 void moverAtras() {
@@ -203,47 +146,39 @@ void moverAtras() {
   // Motor A (Izquierdo) - Atrás
   digitalWrite(MOTOR_A_IN1, LOW);
   digitalWrite(MOTOR_A_IN2, HIGH);
-  ledcWrite(MOTOR_A_ENA, VELOCIDAD_MOTOR);  // USAR LEDC
   
   // Motor B (Derecho) - Atrás
   digitalWrite(MOTOR_B_IN3, LOW);
   digitalWrite(MOTOR_B_IN4, HIGH);
-  ledcWrite(MOTOR_B_ENB, VELOCIDAD_MOTOR);  // USAR LEDC
 }
 
 void girarIzquierda() {
   Serial.println("MOTORES: Giro Izquierda");
-  // Motor A (Izquierdo) - Atrás
-  digitalWrite(MOTOR_A_IN1, LOW);
-  digitalWrite(MOTOR_A_IN2, HIGH);
-  ledcWrite(MOTOR_A_ENA, VELOCIDAD_MOTOR);  // USAR LEDC
-  
-  // Motor B (Derecho) - Adelante
-  digitalWrite(MOTOR_B_IN3, HIGH);
-  digitalWrite(MOTOR_B_IN4, LOW);
-  ledcWrite(MOTOR_B_ENB, VELOCIDAD_MOTOR);  // USAR LEDC
-}
-
-void girarDerecha() {
-  Serial.println("MOTORES: Giro Derecha");
   // Motor A (Izquierdo) - Adelante
   digitalWrite(MOTOR_A_IN1, HIGH);
   digitalWrite(MOTOR_A_IN2, LOW);
-  ledcWrite(MOTOR_A_ENA, VELOCIDAD_MOTOR);  // USAR LEDC
   
   // Motor B (Derecho) - Atrás
   digitalWrite(MOTOR_B_IN3, LOW);
   digitalWrite(MOTOR_B_IN4, HIGH);
-  ledcWrite(MOTOR_B_ENB, VELOCIDAD_MOTOR);  // USAR LEDC
+}
+
+void girarDerecha() {
+  Serial.println("MOTORES: Giro Derecha");
+  // Motor A (Izquierdo) - Atrás
+  digitalWrite(MOTOR_A_IN1, LOW);
+  digitalWrite(MOTOR_A_IN2, HIGH);
+  
+  // Motor B (Derecho) - Adelante
+  digitalWrite(MOTOR_B_IN3, HIGH);
+  digitalWrite(MOTOR_B_IN4, LOW);
 }
 
 void pararMotores() {
   Serial.println("MOTORES: Parado");
-  // Apagar todos los pines de forma segura
+  // Apagar todos los pines de dirección
   digitalWrite(MOTOR_A_IN1, LOW);
   digitalWrite(MOTOR_A_IN2, LOW);
   digitalWrite(MOTOR_B_IN3, LOW);
   digitalWrite(MOTOR_B_IN4, LOW);
-  ledcWrite(MOTOR_A_ENA, 0);   // USAR LEDC para parar
-  ledcWrite(MOTOR_B_ENB, 0);   // USAR LEDC para parar
 }
