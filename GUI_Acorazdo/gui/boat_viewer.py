@@ -151,42 +151,42 @@ class BoatViewer(QWidget):
         painter.setBrush(QColor(0, 0, 0, 50))
         painter.drawEllipse(-40, -25, 80, 50)
         
-        # Cuerpo del barco (forma de barco simplificada)
+        # Cuerpo del barco (forma de barco apuntando hacia ARRIBA)
         painter.setPen(QPen(QColor(44, 62, 80), 3))
         painter.setBrush(QColor(236, 240, 241))
         
-        # Casco principal
+        # Casco principal (rotado 90° para apuntar arriba)
         path = QPainterPath()
-        path.moveTo(-35, 0)
-        path.lineTo(-25, -15)
-        path.lineTo(25, -15)
-        path.lineTo(35, 0)
-        path.lineTo(25, 15)
-        path.lineTo(-25, 15)
+        path.moveTo(0, -35)      # Proa arriba
+        path.lineTo(-15, -25)    # Lado izquierdo
+        path.lineTo(-15, 25)     # Lado izquierdo atrás
+        path.lineTo(0, 35)       # Popa
+        path.lineTo(15, 25)      # Lado derecho atrás
+        path.lineTo(15, -25)     # Lado derecho
         path.closeSubpath()
         
         painter.drawPath(path)
         
         # Cabina
         painter.setBrush(QColor(52, 152, 219))
-        painter.drawRect(-15, -10, 30, 20)
+        painter.drawRect(-10, -15, 20, 30)
         
         # Ventanas
         painter.setBrush(QColor(127, 140, 141))
-        painter.drawRect(-10, -7, 8, 6)
-        painter.drawRect(2, -7, 8, 6)
+        painter.drawRect(-7, -10, 6, 8)
+        painter.drawRect(-7, 2, 6, 8)
         
-        # Proa (frente)
+        # Proa (frente rojo apuntando arriba)
         painter.setBrush(QColor(231, 76, 60))
-        painter.drawEllipse(30, -5, 10, 10)
+        painter.drawEllipse(-5, -40, 10, 10)
         
-        # Indicador de dirección
+        # Indicador de dirección (apuntando arriba cuando se mueve)
         if self.is_moving:
             painter.setPen(QPen(QColor(46, 204, 113), 3))
-            painter.drawLine(0, 0, 45, 0)
+            painter.drawLine(0, 0, 0, -45)
             # Flecha
-            painter.drawLine(45, 0, 38, -7)
-            painter.drawLine(45, 0, 38, 7)
+            painter.drawLine(0, -45, -7, -38)
+            painter.drawLine(0, -45, 7, -38)
         
         painter.restore()
     
